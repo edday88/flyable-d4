@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Paragliding in Derbyshire</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Leaflet CSS -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-xodZBNTC5n17Xt2vOT+7JSBsWt6lIbsq36u9g3rM2pU="
+      crossorigin=""
+    />
+    <style>
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <!-- Leaflet JS -->
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-o9N1jV+n7Vt7E2xgFN9ZljA7Y6Z1C3EO45kH2zZRXjM="
+      crossorigin=""
+    ></script>
+    <script>
+        // Initialize the map
+        var map = L.map('map').setView([53.35, -1.8], 11);
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Paragliding sites in Derbyshire
+        var sites = [
+            {
+                name: 'Mam Tor',
+                lat: 53.355,
+                lon: -1.816
+            },
+            {
+                name: 'Bradwell Edge',
+                lat: 53.330,
+                lon: -1.740
+            },
+            {
+                name: 'Rushup Edge',
+                lat: 53.350,
+                lon: -1.830
+            },
+            {
+                name: 'Lord\'s Seat',
+                lat: 53.341,
+                lon: -1.847
+            },
+            {
+                name: 'Stanage Edge',
+                lat: 53.337,
+                lon: -1.627
+            }
+        ];
+
+        // Function to determine flyability and add markers
+        function addSiteMarker(site) {
+            var weatherUrl = 'https://api.open-meteo.com/v1/forecast?' +
+                'latitude=' + site.lat +
+                '&longitude=' + site.lon +
+                '&hourly=wind_speed,precipitation' +
+                '&daily=sunrise,sunset' +
+                '&timezone=auto';
+
+            fetch(weatherUrl)
+                .then(response => response.json())
+                .then(data => {
+                    // Get current date and time
+                    var now = new Date();
+
+                    // Get sunrise and sunset times
+                    var sunrise = new Date(data.daily.sunrise[0]);
+                    var sunset = new Date(data.daily.sunset[0]);
+
+                    // Check if it's daylight
+                    var isDaylight = now >= sunrise && now <= sunset;
+
+                    // Find the closest hour index
+                    var hourIndex = data.hourly.time.findIndex(time => {
+                        return new Date(time).getHours() === now.getHours();
+                    });
+
+                    // Get wind speed and precipitation for the current hour
+                    var windSpeed = data.hourly.wind_speed[hourIndex];
+                    var precipitation = data.hourly.precipitation[hourIndex];
+
+                    // Determine if site is flyable
+                    var flyable = windSpeed >= 0 && windSpeed <= 25 && precipitation === 0 && isDaylight;
+
+                    // Choose marker color
+                    var markerColor = flyable ? 'green' : 'red';
+
+                    // Create custom icon
+                    var icon = L.circleMarker([site.lat, site.lon], {
+                        color: markerColor,
+                        radius: 10
+                    }).addTo(map);
+
+                    // Add popup
+                    var popupContent = `<b>${site.name}</b><br/>
+                        Wind Speed: ${windSpeed} km/h<br/>
+                        Precipitation: ${precipitation} mm<br/>
+                        Flyable: ${flyable ? 'Yes' : 'No'}`;
+
+                    icon.bindPopup(popupContent);
+                })
+                .catch(error => {
+                    console.error('Error fetching weather data:', error);
+                });
+        }
+
+        // Add markers for all sites
+        sites.forEach(addSiteMarker);
+    </script>
+</body>
+</html>
